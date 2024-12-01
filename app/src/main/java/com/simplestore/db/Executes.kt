@@ -2,7 +2,6 @@ package com.simplestore.db
 
 import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
-import java.sql.Connection
 
 object Table {
     object Purchase {
@@ -25,7 +24,6 @@ object Table {
     object Accounting {
         const val T_NAME = "accounting"
 
-        //        const val ID = "id"
         const val STORE_ID = "store_id"
         const val PRODUCT_ARTICLE = "product_article"
         const val COST = "cost"
@@ -60,8 +58,6 @@ enum class QuantityToAssess(val value: String) {
     GRAM_100("100g"),
     KILOGRAM_1("1kg")
 }
-
-class Purchase(val article: Long, val amount: Double)
 
 fun SQLiteDatabase.executeDeleteDb(): Unit =
     listOf(
@@ -169,59 +165,7 @@ fun SQLiteDatabase.executePrepareDb() {
     ).forEach { execute(it) }
 }
 
-fun Connection.executeBuy(
-    storeId: Long,
-    purchases: List<Purchase>,
-): Connection {
-    try {
-        val generatedCheckListId = prepareStatement(
-            """
-        INSERT INTO ${Table.CheckList.T_NAME}
-            (${Table.CheckList.STORE_ID}, ${Table.CheckList.TIME})
-        VALUES
-            ($storeId, NOW());
-        """,
-            arrayOf(Table.CheckList.ID)
-        ).use { preparedStmt ->
-            preparedStmt.executeUpdate()
-            preparedStmt
-                .generatedKeys
-                .apply { next() }
-                .getLong(1)
-        }
 
-        val queryAddPurchaseBuilder = StringBuilder()
-        purchases.forEach { purchase ->
-            queryAddPurchaseBuilder
-                .append(
-                    """
-                INSERT INTO ${Table.Purchase.T_NAME}
-                    (${Table.Purchase.CHECK_LIST_ID}, ${Table.Purchase.PRODUCT_ARTICLE}, ${Table.Purchase.AMOUNT})
-                VALUES
-                    ($generatedCheckListId, ${purchase.article}, ${purchase.amount});
-                    
-                """
-                )
-                .append(
-                    """
-                UPDATE ${Table.Accounting.T_NAME}
-                    SET ${Table.Accounting.AMOUNT}=${Table.Accounting.AMOUNT}-${purchase.amount}
-                    WHERE ${Table.Accounting.STORE_ID}=$storeId 
-                        AND ${Table.Accounting.PRODUCT_ARTICLE}=${purchase.article};
-                        
-                """
-                )
-        }
-
-        createStatement().execute(queryAddPurchaseBuilder.toString())
-
-        commit()
-    } catch (e: Exception) {
-        rollback()
-        throw e
-    }
-    return this
-}
 
 fun SQLiteDatabase.query(query: String, handler: (Cursor?) -> Unit = {}) {
     handler(query(query))
@@ -234,10 +178,3 @@ fun SQLiteDatabase.query(query: String): Cursor? {
 fun SQLiteDatabase.execute(query: String) {
     execSQL(query)
 }
-
-
-/*
-
-
-
-*/

@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -19,11 +20,11 @@ import java.util.Stack
 object StateManager {
     open class State {
         class NoConnection : State()
-        class ChangeStore(val conn: SQLiteDatabase) : State()
-        class History(val conn: SQLiteDatabase, val storeId: Long) : State()
-        class Menu(val conn: SQLiteDatabase, val storeId: Long) : State()
-        class Shopping(val conn: SQLiteDatabase, val storeId: Long) : State()
-        class Exit(val conn: SQLiteDatabase? = null) : State()
+        class ChangeStore : State()
+        class History(val storeId: Long) : State()
+        class Menu(val storeId: Long) : State()
+        class Shopping(val storeId: Long) : State()
+        class Rating(val storeId: Long) : State()
     }
 
     private val stackState = Stack<State>()
@@ -32,18 +33,14 @@ object StateManager {
     fun Screen(conn: SQLiteDatabase?) {
         val state = remember {
             mutableStateOf(
-                if (conn != null) State.ChangeStore(conn)
+                if (conn != null) State.ChangeStore()
                 else State.NoConnection()
             )
         }
 
         val activity = (LocalContext.current as? Activity)
         BackHandler {
-            if (stackState.size >= 1) {
-                stackState.pop()
-                state.value = stackState.pop()
-            } else
-                activity?.finish()
+            rollback(state, activity)
         }
 
         when (state.value) {
@@ -67,7 +64,7 @@ object StateManager {
             is State.Menu -> {
                 val castedState = state.value as State.Menu
                 stackState.push(castedState)
-                Menu.Screen(conn!!, castedState.storeId, state)
+                Menu.Screen(castedState.storeId, state)
             }
 
             is State.History -> {
@@ -75,12 +72,27 @@ object StateManager {
                 stackState.push(castedState)
                 History.Screen(conn!!, castedState.storeId)
             }
+
             is State.Shopping -> {
                 val castedState = state.value as State.Shopping
                 stackState.push(castedState)
-                Shopping.Screen(conn!!, castedState.storeId)
+                Shopping.Screen(conn!!, castedState.storeId) { rollback(state, activity) }
+            }
+
+            is State.Rating -> {
+                val castedState = state.value as State.Rating
+                stackState.push(castedState)
+                Rating.Screen(conn!!, castedState.storeId)
             }
         }
+    }
+
+    private fun rollback(state: MutableState<State>, activity: Activity? = null) {
+        if (stackState.size >= 1) {
+            stackState.pop()
+            state.value = stackState.pop()
+        } else
+            activity?.finish()
     }
 
 }
