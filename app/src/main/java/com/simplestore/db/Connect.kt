@@ -4,35 +4,43 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import android.util.Log
+import androidx.room.Room
+import androidx.room.RoomDatabase
+import androidx.sqlite.db.SupportSQLiteDatabase
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.sql.SQLException
 
-class SQLiteConnection(
-    baseContext: Context
-) : SQLiteOpenHelper(baseContext, "app.db", null, 1) {
-    override fun onCreate(db: SQLiteDatabase) {
-        Log.d("CONN", "Created")
-        try {
-            db.beginTransaction()
-            db.executeInitDb()
-            db.executePrepareDb()
-            db.setTransactionSuccessful()
-        } finally {
-            db.endTransaction()
-        }
-        Log.d("CONN", "Prepared")
-    }
+private const val TAG = "CONN"
 
-    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        db.executeDeleteDb()
-        onCreate(db)
-        Log.d("CONN", "Upgraded")
+private class AppDbCallback(
+    val appDb: AppDatabase?
+) : RoomDatabase.Callback() {
+    override fun onCreate(db: SupportSQLiteDatabase) {
+        if (appDb == null) {
+            Log.e(TAG, "onCreate")
+            return
+        }
+
+        CoroutineScope(Dispatchers.IO).launch {
+            appDb.initDao().initializeDatabase()
+        }
     }
 }
 
-fun connect(baseContext: Context): SQLiteDatabase? =
+private var appDb: AppDatabase? = null
+
+fun connect(applicationContext: Context) =
     try {
-        SQLiteConnection(baseContext).apply { onCreate(writableDatabase) }.writableDatabase
+        appDb = Room.databaseBuilder(
+            applicationContext,
+            AppDatabase::class.java,
+            "app_db"
+        )
+            .addCallback(AppDbCallback(appDb))
+            .build()
     } catch (e: SQLException) {
-        Log.e("CONN", e.toString())
+        Log.e(TAG, e.toString())
         null
     }

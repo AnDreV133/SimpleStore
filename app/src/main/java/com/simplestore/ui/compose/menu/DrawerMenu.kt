@@ -49,7 +49,6 @@ fun DrawerMenuItem(
             fontSize = 18.sp,
             fontWeight = FontWeight.Medium,
             softWrap = true,
-//            overflow = TextOverflow.Ellipsis,
         )
     }
 }

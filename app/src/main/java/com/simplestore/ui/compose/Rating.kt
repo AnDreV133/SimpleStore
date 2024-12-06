@@ -69,5 +69,4 @@ object Rating {
 
         return res
     }
-
 }

@@ -1,12 +1,10 @@
 package com.simplestore.ui.compose
 
-import android.database.sqlite.SQLiteDatabase
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import com.simplestore.ui.compose.menu.DrawerMenu
 
 object Menu {
-
     @Composable
     fun Screen(storeId: Long, state: MutableState<StateManager.State>) {
         DrawerMenu(
