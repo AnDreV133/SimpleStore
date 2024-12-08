@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -25,15 +26,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.unit.dp
-import com.simplestore.R
 import com.simplestore.db.Table
 import com.simplestore.db.execute
 import com.simplestore.db.query
 import com.simplestore.ui.compose.table.TableCell
 import com.simplestore.ui.compose.table.TableCellText
+import com.simplestore.ui.theme.ArrowLeft
+import com.simplestore.ui.theme.ArrowRight
+import com.simplestore.ui.theme.PathArrowDown
 import java.util.Calendar
 
 object Shopping {
@@ -103,7 +104,7 @@ object Shopping {
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(16.dp),
-                    imageVector = ImageVector.vectorResource(R.drawable.baseline_arrow_downward_24),
+                    imageVector = Icons.Default.PathArrowDown,
                     contentDescription = "arrow"
                 )
             }
@@ -133,15 +134,15 @@ object Shopping {
                                 modifier = buttonModifier {
                                     if (model.amount > 0) model.amount -= 1
                                 },
-                                imageVector = ImageVector.vectorResource(R.drawable.baseline_keyboard_arrow_left_24),
-                                contentDescription = "current amount ${model.amount}" // TODO: redraw when add amount
+                                imageVector = Icons.Default.ArrowLeft,
+                                contentDescription = "current amount ${model.amount}"
                             )
                             Text(modifier = Modifier.padding(8.dp, 0.dp), text = "$amount")
                             Icon(
                                 modifier = buttonModifier {
                                     if (model.amount + 1 - 0.001 < model.maxAmount) model.amount += 1
                                 },
-                                imageVector = ImageVector.vectorResource(R.drawable.baseline_keyboard_arrow_right_24),
+                                imageVector = Icons.Default.ArrowRight,
                                 contentDescription = "current amount ${model.amount}"
                             )
                         }

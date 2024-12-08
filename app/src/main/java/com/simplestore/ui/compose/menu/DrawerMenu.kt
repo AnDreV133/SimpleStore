@@ -2,7 +2,6 @@ package com.simplestore.ui.compose.menu
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -20,12 +19,12 @@ import com.simplestore.ui.compose.StateManager
 
 @Composable
 fun DrawerMenu(
+    modifier: Modifier = Modifier,
     menuItems: List<Pair<String, StateManager.State>>,
     state: MutableState<StateManager.State>
 ) {
     LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
+        modifier = modifier
             .padding(24.dp)
             .background(Color.White),
         contentPadding = PaddingValues(0.dp, 4.dp),

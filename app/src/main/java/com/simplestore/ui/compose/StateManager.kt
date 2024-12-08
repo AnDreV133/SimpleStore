@@ -9,34 +9,38 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import java.io.Serializable
 import java.util.Stack
 
 object StateManager {
-    open class State {
+
+    sealed class State : Serializable {
         class NoConnection : State()
         class ChangeStore : State()
         class History(val storeId: Long) : State()
         class Menu(val storeId: Long) : State()
         class Shopping(val storeId: Long) : State()
         class Rating(val storeId: Long) : State()
+        class Console : State()
     }
 
     private val stackState = Stack<State>()
 
     @Composable
     fun Screen(conn: SQLiteDatabase?) {
-        val state = remember {
+        val state = rememberSaveable {
             mutableStateOf(
                 if (conn != null) State.ChangeStore()
                 else State.NoConnection()
             )
         }
+
 
         val activity = (LocalContext.current as? Activity)
         BackHandler {
@@ -83,6 +87,10 @@ object StateManager {
                 val castedState = state.value as State.Rating
                 stackState.push(castedState)
                 Rating.Screen(conn!!, castedState.storeId)
+            }
+
+            is State.Console -> {
+                Console.Screen(conn!!)
             }
         }
     }
