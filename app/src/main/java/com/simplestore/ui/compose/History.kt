@@ -1,29 +1,36 @@
 package com.simplestore.ui.compose
 
-import android.database.sqlite.SQLiteDatabase
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.simplestore.db.Table
-import com.simplestore.db.query
+import com.simplestore.db.AppDatabase
+import com.simplestore.db.Models
+import kotlinx.coroutines.launch
 
 object History {
-    class PurchaseModel(val name: String, val count: Double, val quan: String, val price: Double)
-    class PurchaseHistoryModel(val checkId: Long, val purchases: List<PurchaseModel>)
+    class PurchaseHistoryModel(val checkId: Long, val purchases: List<Models.History>)
 
     @Composable
-    fun Screen(conn: SQLiteDatabase, storeId: Long) {
+    fun Screen(conn: AppDatabase, storeId: Long) {
+        val scope = rememberCoroutineScope()
+        var historyModelState by remember { mutableStateOf<List<PurchaseHistoryModel>>(listOf()) }
+
         LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()
         ) {
-            items(conn.queryGetHistory(storeId)) { model ->
+            items(historyModelState) { model ->
                 val modifier = Modifier.padding(bottom = 10.dp)
                 Text(
                     modifier = modifier,
@@ -32,58 +39,37 @@ object History {
                 for (purchase in model.purchases) {
                     Text(
                         modifier = modifier,
-                        text = "Name: ${purchase.name}, Count: ${purchase.count} in ${purchase.quan}, Price: ${purchase.price}"
+                        text = "Name: ${purchase.productName}, " +
+                                "Count: ${purchase.amount} in ${purchase.quantityToAssess}, " +
+                                "Price: ${purchase.cost}"
                     )
                 }
             }
         }
+
+        LaunchedEffect(Unit) {
+            scope.launch {
+                historyModelState = conn.queryGetHistory(storeId)
+            }
+        }
     }
 
-    private fun SQLiteDatabase.queryGetHistory(storeId: Long): List<PurchaseHistoryModel> {
+    private suspend fun AppDatabase.queryGetHistory(storeId: Long): List<PurchaseHistoryModel> {
         val res = mutableListOf<PurchaseHistoryModel>()
-        query(
-            """
-        select  t0.${Table.CheckList.ID},
-                t2.${Table.Product.NAME}, 
-                t1.${Table.Purchase.AMOUNT},
-                t2.${Table.Product.QUANTITY_TO_ASSESS},
-                t1.${Table.Purchase.AMOUNT}*t3.${Table.Accounting.COST}
-        from ${Table.CheckList.T_NAME} as t0 
-        inner join ${Table.Purchase.T_NAME} as t1
-        on t0.${Table.CheckList.ID}=t1.${Table.Purchase.CHECK_LIST_ID}
-            and t0.${Table.CheckList.STORE_ID}=$storeId
-        inner join ${Table.Product.T_NAME} as t2
-        on t1.${Table.Purchase.T_NAME}=t2.${Table.Product.ARTICLE}   
-        inner join ${Table.Accounting.T_NAME} as t3
-        on t1.${Table.Purchase.PRODUCT_ARTICLE}=t3.${Table.Accounting.PRODUCT_ARTICLE}
-            and t3.${Table.Accounting.STORE_ID}=$storeId
-        order by t0.${Table.CheckList.ID} asc;
-        """
-        ) { cursor ->
-            if (cursor == null) return@query
-
-            val checkListMap = mutableMapOf<Long, List<PurchaseModel>>()
-
-            while (cursor.moveToNext()) {
-                checkListMap.compute(
-                    cursor.getLong(0)
-                ) { k, v ->
-                    (v?.toMutableList() ?: mutableListOf())
-                        .apply {
-                            add(
-                                PurchaseModel(
-                                    cursor.getString(1),
-                                    cursor.getDouble(2),
-                                    cursor.getString(3),
-                                    cursor.getDouble(4)
-                                )
-                            )
-                        }
+        mutableMapOf<Long, List<Models.History>>().let { groupedPurchaseList ->
+            bigQueryDao()
+                .getHistory(storeId)
+                .forEach { model ->
+                    groupedPurchaseList.compute(
+                        model.checkListId
+                    ) { k, v ->
+                        (v?.toMutableList() ?: mutableListOf())
+                            .apply { add(model) }
+                    }
                 }
-            }
 
-            for (checkList in checkListMap) {
-                res.add(PurchaseHistoryModel(checkList.key, checkList.value))
+            for (groupedPurchase in groupedPurchaseList) {
+                res.add(PurchaseHistoryModel(groupedPurchase.key, groupedPurchase.value))
             }
         }
 

@@ -1,9 +1,5 @@
 package com.simplestore.ui.compose
 
-import android.content.ContentValues
-import android.database.sqlite.SQLiteDatabase
-import android.database.sqlite.SQLiteException
-import android.util.Log
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -18,10 +14,12 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -29,23 +27,24 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.unit.dp
 import com.simplestore.R
-import com.simplestore.db.Table
-import com.simplestore.db.execute
-import com.simplestore.db.query
+import com.simplestore.db.AppDatabase
+import com.simplestore.db.BigQueryDao
+import com.simplestore.db.Models
+import com.simplestore.db.PurchaseEntity
 import com.simplestore.ui.compose.table.TableCell
 import com.simplestore.ui.compose.table.TableCellText
-import java.util.Calendar
+import kotlinx.coroutines.launch
 
 object Shopping {
-    private class Model(
-        val article: Long,
-        val productName: String,
-        val amount: Double,
-        val quan: String,
-        val price: Double
-    )
+//    private class Model(
+//        val article: Long,
+//        val productName: String,
+//        val amount: Double,
+//        val quan: String,
+//        val price: Double
+//    )
 
-    class Purchase(
+    class PurchaseModel(
         val article: Long,
         val productName: String,
         var amount: Double,
@@ -53,47 +52,30 @@ object Shopping {
     )
 
     @Composable
-    fun Screen(conn: SQLiteDatabase, storeId: Long, rollback: () -> Unit) {
-        val changedProducts = remember { mutableStateListOf<Purchase>() }
+    fun Screen(conn: AppDatabase, storeId: Long, rollback: () -> Unit) {
+        val scope = rememberCoroutineScope()
+        val changedProducts = remember { mutableStateListOf<PurchaseModel>() }
 
-        val assortment = conn.queryAssortment(storeId)
-
-        val articleWeight = 0.1f
-        val productNameWeight = 0.4f
-        val amountWeight = 0.18f
-        val quanWeight = 0.16f
-        val priceWeight = 0.16f
-        Column(modifier = Modifier.fillMaxSize()) {
-            LazyColumn(modifier = Modifier.padding(bottom = 16.dp)) {
-                item(assortment.size) {
-                    Row {
-                        TableCellText(weight = articleWeight, text = "Н")
-                        TableCellText(weight = productNameWeight, text = "название товара")
-                        TableCellText(weight = amountWeight, text = "Кол-во")
-                        TableCellText(weight = quanWeight, text = "Исч.")
-                        TableCellText(weight = priceWeight, text = "Цена")
-                    }
-                }
-                items(assortment) { model ->
-                    Row(modifier = Modifier.clickable {
-                        if (changedProducts.none { it.article == model.article })
-                            changedProducts.add(
-                                Purchase(
-                                    model.article,
-                                    model.productName,
-                                    1.0,
-                                    model.amount
-                                )
-                            )
-                    }) {
-                        TableCellText(weight = articleWeight, text = model.article.toString())
-                        TableCellText(weight = productNameWeight, text = model.productName)
-                        TableCellText(weight = amountWeight, text = model.amount.toString())
-                        TableCellText(weight = quanWeight, text = model.quan)
-                        TableCellText(weight = priceWeight, text = model.price.toString())
-                    }
-                }
+        val changeProduct = remember {
+            { model: Models.Assortment ->
+                if (changedProducts.none { it.article == model.article })
+                    changedProducts.add(
+                        PurchaseModel(
+                            model.article,
+                            model.productName,
+                            1.0,
+                            model.amount
+                        )
+                    )
             }
+        }
+
+        Column(modifier = Modifier.fillMaxSize()) {
+            TableOfProducts(
+                conn = conn,
+                storeId = storeId,
+                changeProduct = changeProduct
+            )
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -108,6 +90,8 @@ object Shopping {
                 )
             }
 
+            val articleWeight = 0.1f
+            val productNameWeight = 0.4f
             LazyColumn(modifier = Modifier.padding(bottom = 16.dp)) {
                 items(changedProducts) { model ->
                     Row(modifier = Modifier.clickable {
@@ -155,7 +139,9 @@ object Shopping {
             ) {
                 Button(onClick = {
                     if (changedProducts.isNotEmpty()) {
-                        conn.executeBuy(storeId, changedProducts)
+                        scope.launch {
+                            conn.executeBuy(storeId, changedProducts)
+                        }
                         rollback()
                     }
                 }) {
@@ -166,85 +152,64 @@ object Shopping {
         }
     }
 
-    private fun SQLiteDatabase.queryAssortment(storeId: Long): MutableList<Model> {
-        val res = mutableListOf<Model>()
+    @Composable
+    private fun TableOfProducts(
+        conn: AppDatabase,
+        storeId: Long,
+        changeProduct: (Models.Assortment) -> Unit
+    ) {
+        val assortment = remember {
+            mutableStateListOf<Models.Assortment>()
+        }
 
-        query(
-            """
-            select  t0.${Table.Accounting.PRODUCT_ARTICLE},
-                    t1.${Table.Product.NAME},
-                    t0.${Table.Accounting.AMOUNT}, 
-                    t1.${Table.Product.QUANTITY_TO_ASSESS},
-                    t0.${Table.Accounting.COST}
-                from ${Table.Accounting.T_NAME} as t0
-                inner join ${Table.Product.T_NAME} as t1 
-                on t0.${Table.Accounting.PRODUCT_ARTICLE}=t1.${Table.Product.ARTICLE}
-                where ${Table.Accounting.STORE_ID}=$storeId;
-            """
-        ) { model ->
-            if (model == null) return@query
-
-            while (model.moveToNext()) {
-                res.add(
-                    Model(
-                        model.getLong(0),
-                        model.getString(1),
-                        model.getDouble(2),
-                        model.getString(3),
-                        model.getDouble(4)
-                    )
-                )
+        val articleWeight = 0.1f
+        val productNameWeight = 0.4f
+        val amountWeight = 0.18f
+        val quanWeight = 0.16f
+        val priceWeight = 0.16f
+        LazyColumn(modifier = Modifier.padding(bottom = 16.dp)) {
+            item(assortment.size) {
+                Row {
+                    TableCellText(weight = articleWeight, text = "Н")
+                    TableCellText(weight = productNameWeight, text = "название товара")
+                    TableCellText(weight = amountWeight, text = "Кол-во")
+                    TableCellText(weight = quanWeight, text = "Исч.")
+                    TableCellText(weight = priceWeight, text = "Цена")
+                }
+            }
+            items(assortment) { model ->
+                Row(modifier = Modifier.clickable { changeProduct(model) }) {
+                    TableCellText(weight = articleWeight, text = model.article.toString())
+                    TableCellText(weight = productNameWeight, text = model.productName)
+                    TableCellText(weight = amountWeight, text = model.amount.toString())
+                    TableCellText(weight = quanWeight, text = model.quantityToAssess.toString())
+                    TableCellText(weight = priceWeight, text = model.cost.toString())
+                }
             }
         }
 
-        return res
+        LaunchedEffect(Unit) {
+            assortment.clear()
+            assortment.addAll(conn.queryAssortment(storeId))
+        }
     }
 
-    private fun SQLiteDatabase.executeBuy(
+    private suspend fun AppDatabase.queryAssortment(storeId: Long): List<Models.Assortment> {
+        return bigQueryDao().getAssortment(storeId)
+    }
+
+    private suspend fun AppDatabase.executeBuy(
         storeId: Long,
-        purchases: List<Purchase>,
-    ): Boolean {
-        var res = false
-        try {
-            beginTransaction()
-            val checkId = insert(
-                Table.CheckList.T_NAME,
-                null,
-                ContentValues().apply {
-                    put(Table.CheckList.STORE_ID, storeId)
-                    put(Table.CheckList.TIME, Calendar.getInstance().time.time)
-                }
-            )
-
-            purchases.forEach { purchase ->
-                insert(
-                    Table.Purchase.T_NAME, null,
-                    ContentValues().apply {
-                        put(Table.Purchase.CHECK_LIST_ID, checkId)
-                        put(Table.Purchase.PRODUCT_ARTICLE, purchase.article)
-                        put(Table.Purchase.AMOUNT, purchase.amount)
-                    })
-
-                execute(
-                    """
-                        UPDATE ${Table.Accounting.T_NAME}
-                            SET ${Table.Accounting.AMOUNT}=${Table.Accounting.AMOUNT}-${purchase.amount}
-                            WHERE ${Table.Accounting.STORE_ID}=$storeId 
-                                AND ${Table.Accounting.PRODUCT_ARTICLE}=${purchase.article};
-                                
-                        """
+        purchases: List<PurchaseModel>,
+    ) {
+        productDao().executeBuy(
+            storeId,
+            purchases.map {
+                PurchaseEntity(
+                    productArticle = it.article,
+                    amount = it.amount,
                 )
-            }
-
-            res = true
-            setTransactionSuccessful()
-        } catch (e: SQLiteException) {
-            Log.e("ShoppingState", e.toString())
-        } finally {
-            endTransaction()
-        }
-
-        return res
+            })
     }
 }
 

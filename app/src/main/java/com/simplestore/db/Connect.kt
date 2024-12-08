@@ -33,13 +33,14 @@ private var appDb: AppDatabase? = null
 
 fun connect(applicationContext: Context) =
     try {
-        appDb = Room.databaseBuilder(
+        appDb ?: Room.databaseBuilder(
             applicationContext,
             AppDatabase::class.java,
             "app_db"
         )
             .addCallback(AppDbCallback(appDb))
             .build()
+            .also { appDb = it }
     } catch (e: SQLException) {
         Log.e(TAG, e.toString())
         null

@@ -29,7 +29,7 @@ data class CheckListEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = -1,
     @ColumnInfo(name = Table.CheckList.STORE_ID)
-    val storeId: Int?,
+    val storeId: Long?,
     @ColumnInfo(name = Table.CheckList.TIME)
     val time: Long
 )
@@ -45,11 +45,11 @@ data class AccountingEntity(
     @ColumnInfo(name = Table.Accounting.STORE_ID)
     val storeId: Long,
     @ColumnInfo(name = Table.Accounting.PRODUCT_ARTICLE)
-    val productArticle: Int,
+    val productArticle: Long,
     @ColumnInfo(name = Table.Accounting.COST)
     val cost: Double?,
     @ColumnInfo(name = Table.Accounting.AMOUNT)
-    val amount: Int
+    val amount: Double
 )
 
 @Entity(tableName = Table.Purchase.T_NAME)
@@ -57,9 +57,9 @@ data class PurchaseEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = -1,
     @ColumnInfo(name = Table.Purchase.CHECK_LIST_ID)
-    val checkListId: Int?,
+    val checkListId: Long? = null,
     @ColumnInfo(name = Table.Purchase.PRODUCT_ARTICLE)
-    val productArticle: Int,
+    val productArticle: Long,
     @ColumnInfo(name = Table.Purchase.AMOUNT)
     val amount: Double
 )

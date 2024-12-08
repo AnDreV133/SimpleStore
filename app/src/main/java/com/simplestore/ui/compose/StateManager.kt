@@ -15,6 +15,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.simplestore.db.AppDatabase
 import java.util.Stack
 
 object StateManager {
@@ -30,7 +31,7 @@ object StateManager {
     private val stackState = Stack<State>()
 
     @Composable
-    fun Screen(conn: SQLiteDatabase?) {
+    fun Screen(conn: AppDatabase?) {
         val state = remember {
             mutableStateOf(
                 if (conn != null) State.ChangeStore()
@@ -82,7 +83,7 @@ object StateManager {
             is State.Rating -> {
                 val castedState = state.value as State.Rating
                 stackState.push(castedState)
-                Rating.Screen(conn!!, castedState.storeId)
+//                Rating.Screen(conn!!, castedState.storeId)
             }
         }
     }

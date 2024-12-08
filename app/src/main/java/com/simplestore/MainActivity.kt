@@ -1,6 +1,5 @@
 package com.simplestore
 
-import android.database.sqlite.SQLiteDatabase
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -9,11 +8,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.simplestore.ui.theme.SimpleStoreTheme
+import com.simplestore.db.AppDatabase
 import com.simplestore.db.connect
 import com.simplestore.ui.compose.MainScreen
 
 class MainActivity : ComponentActivity() {
-    private var conn: SQLiteDatabase? = null
+    private var conn: AppDatabase? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

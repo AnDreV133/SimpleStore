@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.jetbrainsKotlinAndroid)
+    id("androidx.room") version "2.7.0-alpha11" apply false
 }
 
 android {
@@ -17,6 +18,16 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary = true
+        }
+
+        javaCompileOptions {
+            annotationProcessorOptions {
+                
+                arguments += mapOf(
+                    "option_name" to "option_value",
+                    // other options...
+                )
+            }
         }
     }
 
@@ -52,6 +63,7 @@ android {
 dependencies {
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
+    annotationProcessor(libs.androidx.room.compiler)
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
