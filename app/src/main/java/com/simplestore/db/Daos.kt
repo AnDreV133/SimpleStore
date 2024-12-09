@@ -134,11 +134,11 @@ interface StoreDao {
 abstract class BigQueryDao {
     @Query(
         """
-        select  t0.${Table.CheckList.ID} as ${Models.HistoryName.CHECK_LIST_ID},
-                t2.${Table.Product.NAME} as ${Models.HistoryName.PRODUCT_NAME},
-                t1.${Table.Purchase.AMOUNT} as ${Models.HistoryName.AMOUNT},
-                t2.${Table.Product.QUANTITY_TO_ASSESS} as ${Models.HistoryName.QUANTITY_TO_ASSESS},
-                t1.${Table.Purchase.AMOUNT}*t3.${Table.Accounting.COST} as ${Models.HistoryName.COST}
+        select  t0.${Table.CheckList.ID} as ${Models.History.ColName.CHECK_LIST_ID},
+                t2.${Table.Product.NAME} as ${Models.History.ColName.PRODUCT_NAME},
+                t1.${Table.Purchase.AMOUNT} as ${Models.History.ColName.AMOUNT},
+                t2.${Table.Product.QUANTITY_TO_ASSESS} as ${Models.History.ColName.QUANTITY_TO_ASSESS},
+                t1.${Table.Purchase.AMOUNT}*t3.${Table.Accounting.COST} as ${Models.History.ColName.COST}
         from ${Table.CheckList.T_NAME} as t0 
         inner join ${Table.Purchase.T_NAME} as t1
         on t0.${Table.CheckList.ID}=t1.${Table.Purchase.CHECK_LIST_ID}
@@ -153,30 +153,13 @@ abstract class BigQueryDao {
     )
     abstract suspend fun getHistory(storeId: Long): List<Models.History>
 
-//    suspend fun getHistory(storeId: Long): List<Models.History> = getHistoryQuery(storeId)
-//        .let { cursor ->
-//            mutableListOf<Models.History>().apply {
-//                while (cursor.moveToNext()) {
-//                    add(
-//                        Models.History(
-//                            checkListId = cursor.getLong(0),
-//                            productName = cursor.getString(1),
-//                            amount = cursor.getDouble(2),
-//                            quantityToAssess = cursor.getString(3),
-//                            cost = cursor.getDouble(4)
-//                        )
-//                    )
-//                }
-//            }
-//        }
-
     @Query(
         """
-        select  t0.${Table.Accounting.PRODUCT_ARTICLE} as ${Models.AssortmentName.ARTICLE},
-                t1.${Table.Product.NAME} as ${Models.AssortmentName.PRODUCT_NAME},
-                t0.${Table.Accounting.AMOUNT} as ${Models.AssortmentName.AMOUNT},
-                t1.${Table.Product.QUANTITY_TO_ASSESS} as ${Models.AssortmentName.QUANTITY_TO_ASSESS},
-                t0.${Table.Accounting.COST} as ${Models.AssortmentName.COST}
+        select  t0.${Table.Accounting.PRODUCT_ARTICLE} as ${Models.Assortment.ColName.ARTICLE},
+                t1.${Table.Product.NAME} as ${Models.Assortment.ColName.PRODUCT_NAME},
+                t0.${Table.Accounting.AMOUNT} as ${Models.Assortment.ColName.AMOUNT},
+                t1.${Table.Product.QUANTITY_TO_ASSESS} as ${Models.Assortment.ColName.QUANTITY_TO_ASSESS},
+                t0.${Table.Accounting.COST} as ${Models.Assortment.ColName.COST}
             from ${Table.Accounting.T_NAME} as t0
             inner join ${Table.Product.T_NAME} as t1 
             on t0.${Table.Accounting.PRODUCT_ARTICLE}=t1.${Table.Product.ARTICLE}
@@ -185,35 +168,20 @@ abstract class BigQueryDao {
     )
     abstract suspend fun getAssortment(storeId: Long): List<Models.Assortment>
 
-//    suspend fun getAssortment(storeId: Long): List<Models.Assortment> = getAssortmentQuery(storeId)
-//        .let { cursor ->
-//            mutableListOf<Models.Assortment>().apply {
-//                while (cursor.moveToNext()) {
-//                    add(
-//                        Models.Assortment(
-//                            article = cursor.getLong(0),
-//                            productName = cursor.getString(1),
-//                            amount = cursor.getDouble(2),
-//                            quantityToAssess = cursor.getDouble(3),
-//                            cost = cursor.getDouble(4)
-//                        )
-//                    )
-//                }
-//            }
-//        }
-
-//    @RawQuery
-//    protected abstract suspend fun rawQuery(sql: RoomRawQuery): Cursor?
+    @Query(
+        """
+        select  t2.${Table.Product.NAME} as ${Models.Rating.ColName.PRODUCT_NAME},
+                round(coalesce(sum(t1.${Table.Purchase.AMOUNT})*100/(select sum(amount) from ${Table.Purchase.T_NAME}),0),2)
+                    as ${Models.Rating.ColName.AMOUNT_IN_PERCENT}
+            from check_list as t0
+            inner join ${Table.Purchase.T_NAME} as t1
+            on t0.id=t1.${Table.Purchase.CHECK_LIST_ID}
+                and t0.${Table.CheckList.STORE_ID}=:storeId
+            right join ${Table.Product.T_NAME} as t2
+            on t1.${Table.Purchase.PRODUCT_ARTICLE}=t2.${Table.Product.ARTICLE}
+            group by t2.${Table.Product.NAME}
+            order by ${Models.Rating.ColName.AMOUNT_IN_PERCENT} desc;
+        """
+    )
+    abstract suspend fun getRating(storeId: Long): List<Models.Rating>
 }
-
-//fun SQLiteDatabase.query(query: String, handler: (Cursor?) -> Unit = {}) {
-//    handler(query(query))
-//}
-//
-//fun SQLiteDatabase.query(query: String): Cursor? {
-//    return rawQuery(query, null)
-//}
-//
-//fun SQLiteDatabase.execute(query: String) {
-//    execSQL(query)
-//}
