@@ -6,11 +6,13 @@ import androidx.room.RoomDatabase
 
 @Database(
     entities = [
-        InitDao::class,
-        StoreDao::class,
-        ProductDao::class,
-        BigQueryDao::class
+        StoreEntity::class,
+        ProductEntity::class,
+        CheckListEntity::class,
+        AccountingEntity::class,
+        PurchaseEntity::class,
     ],
+    exportSchema = true,
     version = 1
 )
 abstract class AppDatabase : RoomDatabase() {

@@ -8,8 +8,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.simplestore.ui.theme.SimpleStoreTheme
-import com.simplestore.db.AppDatabase
 import com.simplestore.db.connect
+import com.simplestore.db.AppDatabase
 import com.simplestore.ui.compose.MainScreen
 
 class MainActivity : ComponentActivity() {

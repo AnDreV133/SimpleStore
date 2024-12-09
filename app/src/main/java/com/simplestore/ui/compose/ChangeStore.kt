@@ -4,7 +4,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import com.simplestore.db.AppDatabase
@@ -28,6 +27,7 @@ object ChangeStore {
 
         LaunchedEffect(Unit) {
             scope.launch {
+                storesMenu.clear()
                 storesMenu.addAll(
                     conn.executeStores()
                         .map { model ->
@@ -40,5 +40,9 @@ object ChangeStore {
     }
 
     private suspend fun AppDatabase.executeStores(): List<Model> =
-        this.storeDao().getStores().map { Model(it.id, it.address) }
+        this.storeDao()
+            .getStores()
+            .map {
+                Model(it.id, it.address)
+            }
 }

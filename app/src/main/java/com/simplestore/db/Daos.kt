@@ -4,8 +4,6 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import androidx.room.RawQuery
-import androidx.room.RoomRawQuery
 import androidx.room.Transaction
 
 @Dao
@@ -105,10 +103,10 @@ abstract class ProductDao {
         storeId: Long,
         article: Long,
         amount: Double
-    ): List<CheckListEntity>
+    ): Int
 
     @Transaction
-    suspend fun executeBuy(
+    open suspend fun executeBuy(
         storeId: Long,
         purchases: List<PurchaseEntity>
     ) {
@@ -128,69 +126,84 @@ abstract class ProductDao {
 
 @Dao
 interface StoreDao {
+    @Query("SELECT * FROM ${Table.Store.T_NAME}")
     suspend fun getStores(): List<StoreEntity>
 }
 
 @Dao
 abstract class BigQueryDao {
-
-
-    suspend fun getHistory(storeId: Long): List<Models.History> = rawQuery(
-        RoomRawQuery(
-            """
-            select  t0.${Table.CheckList.ID},
-                    t2.${Table.Product.NAME}, 
-                    t1.${Table.Purchase.AMOUNT},
-                    t2.${Table.Product.QUANTITY_TO_ASSESS},
-                    t1.${Table.Purchase.AMOUNT}*t3.${Table.Accounting.COST}
-            from ${Table.CheckList.T_NAME} as t0 
-            inner join ${Table.Purchase.T_NAME} as t1
-            on t0.${Table.CheckList.ID}=t1.${Table.Purchase.CHECK_LIST_ID}
-                and t0.${Table.CheckList.STORE_ID}=$storeId
-            inner join ${Table.Product.T_NAME} as t2
-            on t1.${Table.Purchase.T_NAME}=t2.${Table.Product.ARTICLE}   
-            inner join ${Table.Accounting.T_NAME} as t3
-            on t1.${Table.Purchase.PRODUCT_ARTICLE}=t3.${Table.Accounting.PRODUCT_ARTICLE}
-                and t3.${Table.Accounting.STORE_ID}=$storeId
-            order by t0.${Table.CheckList.ID} asc;
-            """
-        ) {
-            Models.History(
-                checkListId = it.getLong(0),
-                productName = it.getText(1),
-                amount = it.getDouble(2),
-                quantityToAssess = it.getText(3),
-                cost = it.getDouble(4)
-            )
-        }
+    @Query(
+        """
+        select  t0.${Table.CheckList.ID} as ${Models.HistoryName.CHECK_LIST_ID},
+                t2.${Table.Product.NAME} as ${Models.HistoryName.PRODUCT_NAME},
+                t1.${Table.Purchase.AMOUNT} as ${Models.HistoryName.AMOUNT},
+                t2.${Table.Product.QUANTITY_TO_ASSESS} as ${Models.HistoryName.QUANTITY_TO_ASSESS},
+                t1.${Table.Purchase.AMOUNT}*t3.${Table.Accounting.COST} as ${Models.HistoryName.COST}
+        from ${Table.CheckList.T_NAME} as t0 
+        inner join ${Table.Purchase.T_NAME} as t1
+        on t0.${Table.CheckList.ID}=t1.${Table.Purchase.CHECK_LIST_ID}
+            and t0.${Table.CheckList.STORE_ID}=:storeId
+        inner join ${Table.Product.T_NAME} as t2
+        on t1.${Table.Purchase.PRODUCT_ARTICLE}=t2.${Table.Product.ARTICLE}   
+        inner join ${Table.Accounting.T_NAME} as t3
+        on t1.${Table.Purchase.PRODUCT_ARTICLE}=t3.${Table.Accounting.PRODUCT_ARTICLE}
+            and t3.${Table.Accounting.STORE_ID}=:storeId
+        order by t0.${Table.CheckList.ID} asc;
+        """
     )
+    abstract suspend fun getHistory(storeId: Long): List<Models.History>
 
-    suspend fun getAssortment(storeId: Long): List<Models.Assortment> = rawQuery(
-        RoomRawQuery(
-            """
-            select  t0.${Table.Accounting.PRODUCT_ARTICLE},
-                    t1.${Table.Product.NAME},
-                    t0.${Table.Accounting.AMOUNT}, 
-                    t1.${Table.Product.QUANTITY_TO_ASSESS},
-                    t0.${Table.Accounting.COST}
-                from ${Table.Accounting.T_NAME} as t0
-                inner join ${Table.Product.T_NAME} as t1 
-                on t0.${Table.Accounting.PRODUCT_ARTICLE}=t1.${Table.Product.ARTICLE}
-                where ${Table.Accounting.STORE_ID}=$storeId;
-            """
-        ) {
-            Models.Assortment(
-                article = it.getLong(0),
-                productName = it.getText(1),
-                amount = it.getDouble(2),
-                quantityToAssess = it.getDouble(3),
-                cost = it.getDouble(4)
-            )
-        }
+//    suspend fun getHistory(storeId: Long): List<Models.History> = getHistoryQuery(storeId)
+//        .let { cursor ->
+//            mutableListOf<Models.History>().apply {
+//                while (cursor.moveToNext()) {
+//                    add(
+//                        Models.History(
+//                            checkListId = cursor.getLong(0),
+//                            productName = cursor.getString(1),
+//                            amount = cursor.getDouble(2),
+//                            quantityToAssess = cursor.getString(3),
+//                            cost = cursor.getDouble(4)
+//                        )
+//                    )
+//                }
+//            }
+//        }
+
+    @Query(
+        """
+        select  t0.${Table.Accounting.PRODUCT_ARTICLE} as ${Models.AssortmentName.ARTICLE},
+                t1.${Table.Product.NAME} as ${Models.AssortmentName.PRODUCT_NAME},
+                t0.${Table.Accounting.AMOUNT} as ${Models.AssortmentName.AMOUNT},
+                t1.${Table.Product.QUANTITY_TO_ASSESS} as ${Models.AssortmentName.QUANTITY_TO_ASSESS},
+                t0.${Table.Accounting.COST} as ${Models.AssortmentName.COST}
+            from ${Table.Accounting.T_NAME} as t0
+            inner join ${Table.Product.T_NAME} as t1 
+            on t0.${Table.Accounting.PRODUCT_ARTICLE}=t1.${Table.Product.ARTICLE}
+            where ${Table.Accounting.STORE_ID}=:storeId;
+        """
     )
+    abstract suspend fun getAssortment(storeId: Long): List<Models.Assortment>
 
-    @RawQuery
-    protected abstract suspend fun <T> rawQuery(sql: RoomRawQuery): List<T>
+//    suspend fun getAssortment(storeId: Long): List<Models.Assortment> = getAssortmentQuery(storeId)
+//        .let { cursor ->
+//            mutableListOf<Models.Assortment>().apply {
+//                while (cursor.moveToNext()) {
+//                    add(
+//                        Models.Assortment(
+//                            article = cursor.getLong(0),
+//                            productName = cursor.getString(1),
+//                            amount = cursor.getDouble(2),
+//                            quantityToAssess = cursor.getDouble(3),
+//                            cost = cursor.getDouble(4)
+//                        )
+//                    )
+//                }
+//            }
+//        }
+
+//    @RawQuery
+//    protected abstract suspend fun rawQuery(sql: RoomRawQuery): Cursor?
 }
 
 //fun SQLiteDatabase.query(query: String, handler: (Cursor?) -> Unit = {}) {
