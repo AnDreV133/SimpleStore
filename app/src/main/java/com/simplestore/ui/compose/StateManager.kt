@@ -1,7 +1,6 @@
 package com.simplestore.ui.compose
 
 import android.app.Activity
-import android.database.sqlite.SQLiteDatabase
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -83,7 +82,7 @@ object StateManager {
             is State.Rating -> {
                 val castedState = state.value as State.Rating
                 stackState.push(castedState)
-//                Rating.Screen(conn!!, castedState.storeId)
+                Rating.Screen(conn!!, castedState.storeId)
             }
         }
     }

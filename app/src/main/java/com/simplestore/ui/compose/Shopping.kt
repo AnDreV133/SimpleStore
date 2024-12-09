@@ -28,7 +28,6 @@ import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.unit.dp
 import com.simplestore.R
 import com.simplestore.db.AppDatabase
-import com.simplestore.db.BigQueryDao
 import com.simplestore.db.Models
 import com.simplestore.db.PurchaseEntity
 import com.simplestore.ui.compose.table.TableCell
